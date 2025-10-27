@@ -1,0 +1,92 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+*.cover
+
+# Dependency directories (remove the comment below to include it)
+vendor/
+
+# Go workspace file
+go.work
+
+# Build artifacts
+/bin/
+/build/
+/dist/
+
+# Output directories
+book/
+output/
+dist/
+target/
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.vs/
+.vscode-test/
+jsconfig.json
+typings/
+*.code-workspace
+
+# OS files
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*~
+
+# Log files
+*.log
+logs/
+
+# Local environment files
+.env
+.env.local
+.env.*.local
+
+# Testing
+coverage.out
+coverage.html
+*.test.out
+.coverage/
+
+# Development
+.cursor/
+.idea/
+.vscode/
+node_modules/
+
+# Generated files
+go.sum~
+go.mod~
+
+# System files
+*.orig
