@@ -4,7 +4,7 @@
   <img src="./geopub.png" alt="geopub logo" width="250" />
 </p>
 
-***geopub*** is a tool for building and publishing websites from Markdown files. It’s inspired by [mdBook](https://github.com/rust-lang/mdBook) but written in Go, with a small JavaScript frontend.
+***geopub*** is a tool for building and publishing documentation websites from Markdown files. It’s inspired by [mdBook](https://github.com/rust-lang/mdBook) but written in Go, with a small JavaScript frontend.
 
 ## Disclaimer
 
