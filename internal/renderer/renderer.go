@@ -283,6 +283,21 @@ func (r *HtmlRenderer) generateTOCAbsolute(book *models.Book) string {
 	return buf.String()
 }
 
+// getGitInfo extracts git repository info from config
+func getGitInfo(ctx *RenderContext, chapterPath string) (gitUrl, gitEditUrl, gitIcon, gitIconClass string) {
+	gitUrl = ctx.Config.GetString("output.html.git-repository-url", "")
+	gitIcon = ctx.Config.GetString("output.html.git-repository-icon", "fa-github")
+	gitIconClass = "fa"
+
+	// Handle edit-url-template
+	editTemplate := ctx.Config.GetString("output.html.edit-url-template", "")
+	if editTemplate != "" && chapterPath != "" {
+		gitEditUrl = strings.ReplaceAll(editTemplate, "{path}", chapterPath)
+	}
+
+	return
+}
+
 // renderChapter renders a single chapter to an HTML file
 func (r *HtmlRenderer) renderChapter(ctx *RenderContext, chapter *models.Chapter, allChapters []*models.Chapter) error {
 	// Convert markdown to HTML with heading anchors
@@ -333,27 +348,32 @@ func (r *HtmlRenderer) renderChapter(ctx *RenderContext, chapter *models.Chapter
 	}
 
 	pd := &pageData{
-		Language:           ctx.Config.Book.Language,
-		DefaultTheme:       "light",
-		PreferredDarkTheme: "navy",
-		TextDirection:      "ltr",
-		Title:              fmt.Sprintf("%s - %s", chapter.Name, ctx.Config.Book.Title),
-		Description:        ctx.Config.Book.Description,
-		FaviconSvg:         true,
-		FaviconPng:         true,
-		PrintEnable:        true,
-		AdditionalCSS:      []string{},
-		AdditionalJS:       []string{},
-		MathJaxSupport:     false,
-		SearchJS:           true,
-		SearchEnabled:      true,
-		PathToRoot:         strings.Repeat("../", depth),
-		BookTitle:          ctx.Config.Book.Title,
-		Previous:           prevData,
-		Next:               nextData,
-		LiveReloadEndpoint: ctx.LiveReloadEndpointPath,
-		Content:            raymond.SafeString(htmlContent),
-		IsPrint:            false,
+		Language:               ctx.Config.Book.Language,
+		DefaultTheme:           ctx.Config.GetString("output.html.default-theme", "light"),
+		PreferredDarkTheme:     ctx.Config.GetString("output.html.preferred-dark-theme", "navy"),
+		TextDirection:          "ltr",
+		Title:                  fmt.Sprintf("%s - %s", chapter.Name, ctx.Config.Book.Title),
+		Description:            ctx.Config.Book.Description,
+		FaviconSvg:             ctx.Config.GetString("output.html.favicon-svg", "") != "",
+		FaviconPng:             ctx.Config.GetString("output.html.favicon-png", "") != "",
+		CopyFonts:              ctx.Config.GetBool("output.html.copy-fonts", true),
+		PrintEnable:            true,
+		AdditionalCSS:          []string{},
+		AdditionalJS:           []string{},
+		MathJaxSupport:         false,
+		SearchJS:               true,
+		SearchEnabled:          true,
+		PathToRoot:             strings.Repeat("../", depth),
+		BookTitle:              ctx.Config.Book.Title,
+		Previous:               prevData,
+		Next:                   nextData,
+		LiveReloadEndpoint:     ctx.LiveReloadEndpointPath,
+		Content:                raymond.SafeString(htmlContent),
+		IsPrint:                false,
+		GitRepositoryUrl:       gitUrl,
+		GitRepositoryEditUrl:   gitEditUrl,
+		GitRepositoryIcon:      gitIcon,
+		GitRepositoryIconClass: gitIconClass,
 	}
 	pageHTML, err := renderPageWithHbs(ctx, pd)
 	if err != nil {

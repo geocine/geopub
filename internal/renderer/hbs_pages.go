@@ -5,35 +5,42 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/aymerick/raymond"
 )
 
 // pageData is the context passed to the Handlebars templates for pages
 type pageData struct {
-	Language           string                 `json:"language"`
-	DefaultTheme       string                 `json:"default_theme"`
-	PreferredDarkTheme string                 `json:"preferred_dark_theme"`
-	TextDirection      string                 `json:"text_direction"`
-	Title              string                 `json:"title"`
-	BaseUrl            string                 `json:"base_url"`
-	Description        string                 `json:"description"`
-	FaviconSvg         bool                   `json:"favicon_svg"`
-	FaviconPng         bool                   `json:"favicon_png"`
-	PrintEnable        bool                   `json:"print_enable"`
-	AdditionalCSS      []string               `json:"additional_css"`
-	AdditionalJS       []string               `json:"additional_js"`
-	MathJaxSupport     bool                   `json:"mathjax_support"`
-	SearchJS           bool                   `json:"search_js"`
-	SearchEnabled      bool                   `json:"search_enabled"`
-	PathToRoot         string                 `json:"path_to_root"`
-	BookTitle          string                 `json:"book_title"`
-	Previous           *struct{ Link string } `json:"previous"`
-	Next               *struct{ Link string } `json:"next"`
-	LiveReloadEndpoint string                 `json:"live_reload_endpoint"`
-	Content            raymond.SafeString     `json:"content"`
-	IsPrint            bool                   `json:"is_print"`
-	FragmentMap        string                 `json:"fragment_map"`
+	Language               string                 `json:"language"`
+	DefaultTheme           string                 `json:"default_theme"`
+	PreferredDarkTheme     string                 `json:"preferred_dark_theme"`
+	TextDirection          string                 `json:"text_direction"`
+	Title                  string                 `json:"title"`
+	BaseUrl                string                 `json:"base_url"`
+	Description            string                 `json:"description"`
+	FaviconSvg             bool                   `json:"favicon_svg"`
+	FaviconPng             bool                   `json:"favicon_png"`
+	CopyFonts              bool                   `json:"copy_fonts"`
+	PrintEnable            bool                   `json:"print_enable"`
+	AdditionalCSS          []string               `json:"additional_css"`
+	AdditionalJS           []string               `json:"additional_js"`
+	MathJaxSupport         bool                   `json:"mathjax_support"`
+	SearchJS               bool                   `json:"search_js"`
+	SearchEnabled          bool                   `json:"search_enabled"`
+	PathToRoot             string                 `json:"path_to_root"`
+	BookTitle              string                 `json:"book_title"`
+	Previous               *struct{ Link string } `json:"previous"`
+	Next                   *struct{ Link string } `json:"next"`
+	LiveReloadEndpoint     string                 `json:"live_reload_endpoint"`
+	Content                raymond.SafeString     `json:"content"`
+	IsPrint                bool                   `json:"is_print"`
+	FragmentMap            string                 `json:"fragment_map"`
+	GitRepositoryUrl       string                 `json:"git_repository_url"`
+	GitRepositoryEditUrl   string                 `json:"git_repository_edit_url"`
+	GitRepositoryIcon      string                 `json:"git_repository_icon"`
+	GitRepositoryIconClass string                 `json:"git_repository_icon_class"`
 }
 
 // registerCommonHelpers registers helpers used by the templates.
