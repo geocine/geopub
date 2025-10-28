@@ -225,9 +225,53 @@ func (c *Config) Get(key string) (interface{}, bool) {
 
 	if parts[0] == "output" && len(parts) > 1 {
 		val, ok := c.Output[parts[1]]
+		if !ok {
+			return nil, false
+		}
+		// If there are more parts, navigate into the nested map
+		if len(parts) > 2 {
+			current, isMap := val.(map[string]interface{})
+			if !isMap {
+				return nil, false
+			}
+			for _, part := range parts[2:] {
+				if v, ok := current[part]; ok {
+					if m, isMap := v.(map[string]interface{}); isMap {
+						current = m
+					} else {
+						return v, true
+					}
+				} else {
+					return nil, false
+				}
+			}
+			return current, true
+		}
 		return val, ok
 	} else if parts[0] == "preprocessor" && len(parts) > 1 {
 		val, ok := c.Preprocessor[parts[1]]
+		if !ok {
+			return nil, false
+		}
+		// If there are more parts, navigate into the nested map
+		if len(parts) > 2 {
+			current, isMap := val.(map[string]interface{})
+			if !isMap {
+				return nil, false
+			}
+			for _, part := range parts[2:] {
+				if v, ok := current[part]; ok {
+					if m, isMap := v.(map[string]interface{}); isMap {
+						current = m
+					} else {
+						return v, true
+					}
+				} else {
+					return nil, false
+				}
+			}
+			return current, true
+		}
 		return val, ok
 	}
 
