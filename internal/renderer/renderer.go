@@ -44,17 +44,17 @@ type HtmlRenderer struct {
 
 // NewHtmlRenderer creates a new HTML renderer
 func NewHtmlRenderer() *HtmlRenderer {
-    md := goldmark.New(
-        goldmark.WithExtensions(
-            extension.GFM,
-            extension.Footnote,
-            extension.DefinitionList,
-        ),
-        goldmark.WithRendererOptions(
-            ghtml.WithUnsafe(),
-        ),
-    )
-    return &HtmlRenderer{markdown: md}
+	md := goldmark.New(
+		goldmark.WithExtensions(
+			extension.GFM,
+			extension.Footnote,
+			extension.DefinitionList,
+		),
+		goldmark.WithRendererOptions(
+			ghtml.WithUnsafe(),
+		),
+	)
+	return &HtmlRenderer{markdown: md}
 }
 
 // Render renders the book to HTML
@@ -155,31 +155,39 @@ func (r *HtmlRenderer) convertMarkdown(content string) (string, []HeadingInfo) {
 	numToLabel := map[string]string{}
 	seen := map[string]bool{}
 	idx := 1
-    // capture [^label] that are not definitions ([^label]:)
-    for i := 0; i+2 < len(content); {
-        j := strings.Index(content[i:], "[^")
-        if j == -1 { break }
-        i += j + 2
-        // find closing ]
-        k := strings.IndexByte(content[i:], ']')
-        if k == -1 { break }
-        label := content[i : i+k]
-        // next char after ]
-        nextIdx := i + k + 1
-        isDef := false
-        if nextIdx < len(content) && content[nextIdx] == ':' { isDef = true }
-        if !isDef {
-            if !seen[label] {
-                numToLabel[fmt.Sprintf("%d", idx)] = label
-                seen[label] = true
-                idx++
-            }
-        }
-        i = nextIdx
-    }
+	// capture [^label] that are not definitions ([^label]:)
+	for i := 0; i+2 < len(content); {
+		j := strings.Index(content[i:], "[^")
+		if j == -1 {
+			break
+		}
+		i += j + 2
+		// find closing ]
+		k := strings.IndexByte(content[i:], ']')
+		if k == -1 {
+			break
+		}
+		label := content[i : i+k]
+		// next char after ]
+		nextIdx := i + k + 1
+		isDef := false
+		if nextIdx < len(content) && content[nextIdx] == ':' {
+			isDef = true
+		}
+		if !isDef {
+			if !seen[label] {
+				numToLabel[fmt.Sprintf("%d", idx)] = label
+				seen[label] = true
+				idx++
+			}
+		}
+		i = nextIdx
+	}
 
 	var buf bytes.Buffer
-	if err := r.markdown.Convert([]byte(content), &buf); err != nil { return "", nil }
+	if err := r.markdown.Convert([]byte(content), &buf); err != nil {
+		return "", nil
+	}
 	html := buf.String()
 
 	// Extract headings and add unique IDs
@@ -189,7 +197,9 @@ func (r *HtmlRenderer) convertMarkdown(content string) (string, []HeadingInfo) {
 	nextSuffix := map[string]int{}
 	html = headingRegex.ReplaceAllStringFunc(html, func(match string) string {
 		parts := headingRegex.FindStringSubmatch(match)
-		if len(parts) < 3 { return match }
+		if len(parts) < 3 {
+			return match
+		}
 		level := parts[1]
 		text := parts[2]
 		plain := regexp.MustCompile(`<[^>]+>`).ReplaceAllString(text, "")
@@ -200,13 +210,20 @@ func (r *HtmlRenderer) convertMarkdown(content string) (string, []HeadingInfo) {
 			for {
 				nextSuffix[base]++
 				cand := base
-				if cand != "" { cand = cand + "-" + fmt.Sprintf("%d", nextSuffix[base]) } else { cand = "-" + fmt.Sprintf("%d", nextSuffix[base]) }
-				if !used[cand] { id = cand; break }
+				if cand != "" {
+					cand = cand + "-" + fmt.Sprintf("%d", nextSuffix[base])
+				} else {
+					cand = "-" + fmt.Sprintf("%d", nextSuffix[base])
+				}
+				if !used[cand] {
+					id = cand
+					break
+				}
 			}
 		}
 		used[id] = true
 		if level != "1" {
-			headings = append(headings, HeadingInfo{ Level: level, Text: plain, ID: id })
+			headings = append(headings, HeadingInfo{Level: level, Text: plain, ID: id})
 		}
 		return fmt.Sprintf(`<h%s id="%s"><a class="header" href="#%s">%s</a></h%s>`, level, id, id, text, level)
 	})
@@ -231,15 +248,15 @@ type HeadingInfo struct {
 
 // slugify converts text to URL slug using geopub-compatible algorithm
 func slugify(text string) string {
-    s := strings.ToLower(text)
-    // Remove characters that are not unicode letters, numbers, whitespace, hyphen, or underscore
-    s = regexp.MustCompile(`[^\p{L}\p{N}\s_-]`).ReplaceAllString(s, "")
-    // Collapse whitespace to single hyphens; preserve underscores and hyphens
-    s = regexp.MustCompile(`\s+`).ReplaceAllString(s, "-")
-    // Collapse multiple hyphens
-    s = regexp.MustCompile(`-+`).ReplaceAllString(s, "-")
-    s = strings.Trim(s, "-")
-    return s
+	s := strings.ToLower(text)
+	// Remove characters that are not unicode letters, numbers, whitespace, hyphen, or underscore
+	s = regexp.MustCompile(`[^\p{L}\p{N}\s_-]`).ReplaceAllString(s, "")
+	// Collapse whitespace to single hyphens; preserve underscores and hyphens
+	s = regexp.MustCompile(`\s+`).ReplaceAllString(s, "-")
+	// Collapse multiple hyphens
+	s = regexp.MustCompile(`-+`).ReplaceAllString(s, "-")
+	s = strings.Trim(s, "-")
+	return s
 }
 
 // renderTOCItemAbsolute recursively renders TOC items with absolute paths
@@ -347,6 +364,9 @@ func (r *HtmlRenderer) renderChapter(ctx *RenderContext, chapter *models.Chapter
 		nextData = &struct{ Link string }{Link: strings.ReplaceAll(strings.TrimSuffix(*nextCh.Path, ".md")+".html", "\\", "/")}
 	}
 
+	// Get git repository info
+	gitUrl, gitEditUrl, gitIcon, gitIconClass := getGitInfo(ctx, *chapter.Path)
+
 	pd := &pageData{
 		Language:               ctx.Config.Book.Language,
 		DefaultTheme:           ctx.Config.GetString("output.html.default-theme", "light"),
@@ -416,15 +436,23 @@ func (r *HtmlRenderer) renderIndex(ctx *RenderContext) error {
 		nextCh = allChapters[1]
 	}
 
+	// Get git repository info
+	var indexChapterPath string
+	if firstCh != nil && firstCh.Path != nil {
+		indexChapterPath = *firstCh.Path
+	}
+	gitUrl, gitEditUrl, gitIcon, gitIconClass := getGitInfo(ctx, indexChapterPath)
+
 	pd := &pageData{
 		Language:           ctx.Config.Book.Language,
-		DefaultTheme:       "light",
-		PreferredDarkTheme: "navy",
+		DefaultTheme:       ctx.Config.GetString("output.html.default-theme", "light"),
+		PreferredDarkTheme: ctx.Config.GetString("output.html.preferred-dark-theme", "navy"),
 		TextDirection:      "ltr",
 		Title:              fmt.Sprintf("%s - %s", "Introduction", ctx.Config.Book.Title),
 		Description:        ctx.Config.Book.Description,
-		FaviconSvg:         true,
-		FaviconPng:         true,
+		FaviconSvg:         ctx.Config.GetString("output.html.favicon-svg", "") != "",
+		FaviconPng:         ctx.Config.GetString("output.html.favicon-png", "") != "",
+		CopyFonts:          ctx.Config.GetBool("output.html.copy-fonts", true),
 		PrintEnable:        true,
 		SearchJS:           true,
 		SearchEnabled:      true,
@@ -437,9 +465,13 @@ func (r *HtmlRenderer) renderIndex(ctx *RenderContext) error {
 			}
 			return nil
 		}(),
-		LiveReloadEndpoint: ctx.LiveReloadEndpointPath,
-		Content:            raymond.SafeString(htmlContent),
-		IsPrint:            false,
+		LiveReloadEndpoint:     ctx.LiveReloadEndpointPath,
+		Content:                raymond.SafeString(htmlContent),
+		IsPrint:                false,
+		GitRepositoryUrl:       gitUrl,
+		GitRepositoryEditUrl:   gitEditUrl,
+		GitRepositoryIcon:      gitIcon,
+		GitRepositoryIconClass: gitIconClass,
 	}
 	pageHTML, err := renderPageWithHbs(ctx, pd)
 	if err != nil {
@@ -460,24 +492,31 @@ func (r *HtmlRenderer) renderExtraPages(ctx *RenderContext) error {
 	notFoundContent := `<h1 id="document-not-found-404"><a class="header" href="#document-not-found-404">Document not found (404)</a></h1>
 <p>This URL is invalid, sorry. Please use the navigation bar or search to continue.</p>`
 
+	// Get git repository info
+	gitUrl, _, gitIcon, gitIconClass := getGitInfo(ctx, "")
+
 	pd404 := &pageData{
-		Language:           ctx.Config.Book.Language,
-		DefaultTheme:       "light",
-		PreferredDarkTheme: "navy",
-		TextDirection:      "ltr",
-		Title:              fmt.Sprintf("%s - %s", "Page not found", ctx.Config.Book.Title),
-		BaseUrl:            "/",
-		Description:        ctx.Config.Book.Description,
-		FaviconSvg:         true,
-		FaviconPng:         true,
-		PrintEnable:        true,
-		SearchJS:           true,
-		SearchEnabled:      true,
-		PathToRoot:         "",
-		BookTitle:          ctx.Config.Book.Title,
-		LiveReloadEndpoint: ctx.LiveReloadEndpointPath,
-		Content:            raymond.SafeString(notFoundContent),
-		IsPrint:            false,
+		Language:               ctx.Config.Book.Language,
+		DefaultTheme:           ctx.Config.GetString("output.html.default-theme", "light"),
+		PreferredDarkTheme:     ctx.Config.GetString("output.html.preferred-dark-theme", "navy"),
+		TextDirection:          "ltr",
+		Title:                  fmt.Sprintf("%s - %s", "Page not found", ctx.Config.Book.Title),
+		BaseUrl:                "/",
+		Description:            ctx.Config.Book.Description,
+		FaviconSvg:             ctx.Config.GetString("output.html.favicon-svg", "") != "",
+		FaviconPng:             ctx.Config.GetString("output.html.favicon-png", "") != "",
+		CopyFonts:              ctx.Config.GetBool("output.html.copy-fonts", true),
+		PrintEnable:            true,
+		SearchJS:               true,
+		SearchEnabled:          true,
+		PathToRoot:             "",
+		BookTitle:              ctx.Config.Book.Title,
+		LiveReloadEndpoint:     ctx.LiveReloadEndpointPath,
+		Content:                raymond.SafeString(notFoundContent),
+		IsPrint:                false,
+		GitRepositoryUrl:       gitUrl,
+		GitRepositoryIcon:      gitIcon,
+		GitRepositoryIconClass: gitIconClass,
 	}
 	notFoundHTML, err := renderPageWithHbs(ctx, pd404)
 	if err != nil {
@@ -532,6 +571,8 @@ func (r *HtmlRenderer) generateTocListHTML(book *models.Book) string {
 			r.renderTocItemForPage(&buf, ch, 0)
 		} else if _, ok := item.(*models.Separator); ok {
 			buf.WriteString(`<li class="chapter-item expanded "><li class="spacer"></li>`)
+		} else if pt, ok := item.(*models.PartTitle); ok {
+			fmt.Fprintf(&buf, `<li class="chapter-item expanded affix "><li class="part-title">%s</li>`, htmlEscape(pt.Title))
 		}
 	}
 	buf.WriteString(`</ol>`)
@@ -547,6 +588,8 @@ func (r *HtmlRenderer) generateTocListForJS(book *models.Book) string {
 			r.renderTocItemForJS(&buf, ch, 0)
 		} else if _, ok := item.(*models.Separator); ok {
 			buf.WriteString(`<li class="chapter-item expanded "><li class="spacer"></li>`)
+		} else if pt, ok := item.(*models.PartTitle); ok {
+			fmt.Fprintf(&buf, `<li class="chapter-item expanded affix "><li class="part-title">%s</li>`, htmlEscape(pt.Title))
 		}
 	}
 	buf.WriteString(`</ol>`)
@@ -574,15 +617,27 @@ func (r *HtmlRenderer) renderTocItemForPage(buf *strings.Builder, ch *models.Cha
 
 	// Calculate section number display
 	numStr := ""
-	if ch.Number != nil && len(ch.Number.Parts) > 0 {
+	hasNumber := ch.Number != nil && len(ch.Number.Parts) > 0
+	if hasNumber {
 		parts := make([]string, len(ch.Number.Parts))
 		for i, p := range ch.Number.Parts {
 			parts[i] = fmt.Sprintf("%d", p)
 		}
-		numStr = strings.Join(parts, ".") + "."
+		numStr = strings.Join(parts, ".")
 	}
 
-	fmt.Fprintf(buf, `<li class="chapter-item expanded "><a href="%s" target="_parent"><strong aria-hidden="true">%s</strong> %s</a></li>`, path, numStr, htmlEscape(ch.Name))
+	// Prefix chapters (no number) get the 'affix' class
+	className := "chapter-item expanded "
+	if !hasNumber {
+		className = "chapter-item expanded affix "
+	}
+
+	// Format: if has number, show "1." inside strong tag, otherwise empty strong tag
+	if hasNumber {
+		fmt.Fprintf(buf, `<li class="%s"><a href="%s" target="_parent"><strong aria-hidden="true">%s.</strong> %s</a></li>`, className, path, numStr, htmlEscape(ch.Name))
+	} else {
+		fmt.Fprintf(buf, `<li class="%s"><a href="%s" target="_parent">%s</a></li>`, className, path, htmlEscape(ch.Name))
+	}
 
 	if len(ch.SubItems) > 0 {
 		buf.WriteString(`<li><ol class="section">`)
@@ -606,15 +661,27 @@ func (r *HtmlRenderer) renderTocItemForJS(buf *strings.Builder, ch *models.Chapt
 
 	// Calculate section number display
 	numStr := ""
-	if ch.Number != nil && len(ch.Number.Parts) > 0 {
+	hasNumber := ch.Number != nil && len(ch.Number.Parts) > 0
+	if hasNumber {
 		parts := make([]string, len(ch.Number.Parts))
 		for i, p := range ch.Number.Parts {
 			parts[i] = fmt.Sprintf("%d", p)
 		}
-		numStr = strings.Join(parts, ".") + "."
+		numStr = strings.Join(parts, ".")
 	}
 
-	fmt.Fprintf(buf, `<li class="chapter-item expanded "><a href="%s"><strong aria-hidden="true">%s</strong> %s</a></li>`, path, numStr, htmlEscape(ch.Name))
+	// Prefix chapters (no number) get the 'affix' class
+	className := "chapter-item expanded "
+	if !hasNumber {
+		className = "chapter-item expanded affix "
+	}
+
+	// Format: if has number, show "1." inside strong tag, otherwise empty strong tag
+	if hasNumber {
+		fmt.Fprintf(buf, `<li class="%s"><a href="%s"><strong aria-hidden="true">%s.</strong> %s</a></li>`, className, path, numStr, htmlEscape(ch.Name))
+	} else {
+		fmt.Fprintf(buf, `<li class="%s"><a href="%s">%s</a></li>`, className, path, htmlEscape(ch.Name))
+	}
 
 	if len(ch.SubItems) > 0 {
 		buf.WriteString(`<li><ol class="section">`)
@@ -645,22 +712,29 @@ func (r *HtmlRenderer) renderPrintPage(ctx *RenderContext) error {
 	}
 
 	// Render with HBS in print mode
+	// Get git repository info
+	gitUrl, _, gitIcon, gitIconClass := getGitInfo(ctx, "")
+
 	pd := &pageData{
-		Language:           ctx.Config.Book.Language,
-		DefaultTheme:       "light",
-		PreferredDarkTheme: "navy",
-		TextDirection:      "ltr",
-		Title:              ctx.Config.Book.Title,
-		Description:        ctx.Config.Book.Description,
-		FaviconSvg:         true,
-		FaviconPng:         true,
-		PrintEnable:        true,
-		SearchJS:           true,
-		SearchEnabled:      true,
-		PathToRoot:         "",
-		BookTitle:          ctx.Config.Book.Title,
-		Content:            raymond.SafeString(combined.String()),
-		IsPrint:            true,
+		Language:               ctx.Config.Book.Language,
+		DefaultTheme:           ctx.Config.GetString("output.html.default-theme", "light"),
+		PreferredDarkTheme:     ctx.Config.GetString("output.html.preferred-dark-theme", "navy"),
+		TextDirection:          "ltr",
+		Title:                  ctx.Config.Book.Title,
+		Description:            ctx.Config.Book.Description,
+		FaviconSvg:             ctx.Config.GetString("output.html.favicon-svg", "") != "",
+		FaviconPng:             ctx.Config.GetString("output.html.favicon-png", "") != "",
+		CopyFonts:              ctx.Config.GetBool("output.html.copy-fonts", true),
+		PrintEnable:            true,
+		SearchJS:               true,
+		SearchEnabled:          true,
+		PathToRoot:             "",
+		BookTitle:              ctx.Config.Book.Title,
+		Content:                raymond.SafeString(combined.String()),
+		IsPrint:                true,
+		GitRepositoryUrl:       gitUrl,
+		GitRepositoryIcon:      gitIcon,
+		GitRepositoryIconClass: gitIconClass,
 	}
 	pageHTML, err := renderPageWithHbs(ctx, pd)
 	if err != nil {
