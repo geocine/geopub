@@ -200,5 +200,113 @@ No list items here
 	s, err := ParseSummary(summary)
 	require.NoError(t, err)
 
-	assert.Len(t, s.NumberedChapters, 0)
+	// Should have 1 part-title ("Just headers") but no link chapters
+	assert.Len(t, s.NumberedChapters, 1)
+	assert.Equal(t, "part-title", s.NumberedChapters[0].Type)
+	assert.Equal(t, "Just headers", s.NumberedChapters[0].Title)
+}
+
+func TestParsePartTitles(t *testing.T) {
+	summary := `# Summary
+
+# Getting Started
+
+- [Chapter 1](ch1.md)
+- [Chapter 2](ch2.md)
+
+# Advanced
+
+- [Chapter 3](ch3.md)
+`
+
+	s, err := ParseSummary(summary)
+	require.NoError(t, err)
+
+	// Assign section numbers
+	s.AssignSectionNumbers()
+
+	// Should have 2 part titles + 3 chapters = 5 items in numbered chapters
+	assert.Len(t, s.NumberedChapters, 5)
+
+	// First item should be part-title "Getting Started"
+	assert.Equal(t, "part-title", s.NumberedChapters[0].Type)
+	assert.Equal(t, "Getting Started", s.NumberedChapters[0].Title)
+
+	// Second item should be Chapter 1
+	assert.Equal(t, "link", s.NumberedChapters[1].Type)
+	assert.Equal(t, "Chapter 1", s.NumberedChapters[1].Title)
+	assert.NotNil(t, s.NumberedChapters[1].Number)
+	assert.Equal(t, []int{1}, s.NumberedChapters[1].Number.Parts)
+
+	// Fourth item should be part-title "Advanced"
+	assert.Equal(t, "part-title", s.NumberedChapters[3].Type)
+	assert.Equal(t, "Advanced", s.NumberedChapters[3].Title)
+
+	// Fifth item should be Chapter 3 with number 3
+	assert.Equal(t, "link", s.NumberedChapters[4].Type)
+	assert.Equal(t, "Chapter 3", s.NumberedChapters[4].Title)
+	assert.NotNil(t, s.NumberedChapters[4].Number)
+	assert.Equal(t, []int{3}, s.NumberedChapters[4].Number.Parts)
+}
+
+func TestParseBareLink(t *testing.T) {
+	summary := `# Summary
+
+[Introduction](intro.md)
+
+# Chapter 1
+
+- [First Section](ch1.md)
+`
+
+	s, err := ParseSummary(summary)
+	require.NoError(t, err)
+
+	// Assign section numbers
+	s.AssignSectionNumbers()
+
+	// Introduction should be a prefix chapter (bare link without -)
+	assert.Len(t, s.PrefixChapters, 1)
+	assert.Equal(t, "link", s.PrefixChapters[0].Type)
+	assert.Equal(t, "Introduction", s.PrefixChapters[0].Title)
+	assert.Nil(t, s.PrefixChapters[0].Number) // Prefix chapters don't get numbered
+
+	// Numbered chapters should have the part title and chapter
+	assert.Len(t, s.NumberedChapters, 2)
+	assert.Equal(t, "part-title", s.NumberedChapters[0].Type)
+	assert.Equal(t, "Chapter 1", s.NumberedChapters[0].Title)
+
+	assert.Equal(t, "link", s.NumberedChapters[1].Type)
+	assert.Equal(t, "First Section", s.NumberedChapters[1].Title)
+	assert.NotNil(t, s.NumberedChapters[1].Number)
+	assert.Equal(t, []int{1}, s.NumberedChapters[1].Number.Parts)
+}
+
+func TestParseMultipleBareLinks(t *testing.T) {
+	summary := `# Summary
+
+[Intro](intro.md)
+[Preface](preface.md)
+
+- [Chapter 1](ch1.md)
+`
+
+	s, err := ParseSummary(summary)
+	require.NoError(t, err)
+
+	// Assign section numbers
+	s.AssignSectionNumbers()
+
+	// Both bare links should be prefix chapters
+	assert.Len(t, s.PrefixChapters, 2)
+	assert.Equal(t, "Intro", s.PrefixChapters[0].Title)
+	assert.Equal(t, "Preface", s.PrefixChapters[1].Title)
+	assert.Nil(t, s.PrefixChapters[0].Number)
+	assert.Nil(t, s.PrefixChapters[1].Number)
+
+	// Chapter 1 should be numbered
+	assert.Len(t, s.NumberedChapters, 1)
+	assert.Equal(t, "Chapter 1", s.NumberedChapters[0].Title)
+	assert.NotNil(t, s.NumberedChapters[0].Number)
+	assert.Equal(t, []int{1}, s.NumberedChapters[0].Number.Parts)
 }
