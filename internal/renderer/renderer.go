@@ -662,7 +662,7 @@ func htmlEscape(s string) string {
 func (r *HtmlRenderer) copyAssets(ctx *RenderContext) error {
 	type asset struct {
 		key     string
-		src     string // relative under frontend/
+		src     string // relative under frontend/ or theme/
 		destRel string // pre-hash destination relative path
 		data    []byte
 		hash    bool
@@ -674,7 +674,35 @@ func (r *HtmlRenderer) copyAssets(ctx *RenderContext) error {
 		}
 		return os.ReadFile(filepath.Join("frontend", rel))
 	}
+	// readThemeOverride checks if a file exists in theme/ directory and reads it
+	readThemeOverride := func(themePath string) ([]byte, bool) {
+		// Try reading from theme directory (local filesystem only)
+		if _, err := os.Stat("theme"); err == nil {
+			fullPath := filepath.Join("theme", themePath)
+			if data, err := os.ReadFile(fullPath); err == nil {
+				// Replace mdbook- prefixes with geopub- for compatibility
+				ext := strings.ToLower(filepath.Ext(themePath))
+				if ext == ".js" || ext == ".hbs" || ext == ".html" || ext == ".css" {
+					content := string(data)
+					content = strings.ReplaceAll(content, "mdbook-", "geopub-")
+					content = strings.ReplaceAll(content, "mdBook", "GeoPub")
+					// Also replace the capitalized version in help container/popup IDs
+					content = strings.ReplaceAll(content, "<mdbook-", "<geopub-")
+					content = strings.ReplaceAll(content, "</mdbook-", "</geopub-")
+					data = []byte(content)
+				}
+				return data, true
+			}
+		}
+		return nil, false
+	}
 	add := func(key, src, dest string, hash bool) {
+		// First check if there's a theme override
+		if data, ok := readThemeOverride(dest); ok {
+			assets = append(assets, asset{key: key, src: "theme/" + filepath.ToSlash(dest), destRel: filepath.ToSlash(dest), data: data, hash: hash})
+			return
+		}
+		// Otherwise use default from frontend
 		if b, err := read(src); err == nil {
 			assets = append(assets, asset{key: key, src: filepath.ToSlash(src), destRel: filepath.ToSlash(dest), data: b, hash: hash})
 		}
@@ -968,8 +996,3 @@ func (r *HtmlRenderer) stripHTML(content string) string {
 	htmlRegex := regexp.MustCompile(`<[^>]*>`)
 	return htmlRegex.ReplaceAllString(content, "")
 }
-
-
-
-
-

@@ -93,9 +93,10 @@ func registerCommonHelpers(resolve func(string) string) {
 
 // renderPageWithHbs renders a page using Handlebars template engine
 func renderPageWithHbs(ctx *RenderContext, data *pageData) (string, error) {
-	// Register helpers before rendering
+	// We need to pass path_to_root to the resource helper, but since helpers are global
+	// and registered once, we use a different approach: use the template's path_to_root variable
 	registerCommonHelpers(func(name string) string {
-		// This is just a no-op since we're not using asset fingerprinting
+		// Just return the name; the template will prepend path_to_root
 		return name
 	})
 
@@ -105,24 +106,90 @@ func renderPageWithHbs(ctx *RenderContext, data *pageData) (string, error) {
 	var tmplFS fs.FS
 	var base string
 
-	if ctx.AssetsFS != nil {
-		// Use embedded FS
-		tmplFS = ctx.AssetsFS
-		base = "frontend/templates/"
-		indexData, err = fs.ReadFile(ctx.AssetsFS, "frontend/templates/index.hbs")
+	// Check for theme override first
+	themeIndexPath := filepath.Join("theme", "index.hbs")
+	if data, err := os.ReadFile(themeIndexPath); err == nil {
+		// Use custom theme template and replace mdbook- with geopub-
+		content := string(data)
+		content = strings.ReplaceAll(content, "mdbook-", "geopub-")
+		content = strings.ReplaceAll(content, "MDBook", "GeoPub")
+		content = strings.ReplaceAll(content, "<mdbook-", "<geopub-")
+		content = strings.ReplaceAll(content, "</mdbook-", "</geopub-")
+
+		// Fix resource paths: add path_to_root before resource helper calls for proper relative paths
+		// Replace {{ resource "..." }} with {{ path_to_root }}{{ resource "..." }}
+		// but only if path_to_root is not already there
+		// First, replace existing patterns that already have path_to_root with a marker
+		content = strings.ReplaceAll(content, "{{ path_to_root }}{{ resource ", "{{MARKER_path_to_root_resource ")
+		content = strings.ReplaceAll(content, "{{path_to_root}}{{ resource ", "{{MARKER_path_to_root_resource ")
+		content = strings.ReplaceAll(content, "{{ path_to_root}}{{resource ", "{{MARKER_path_to_root_resource ")
+		content = strings.ReplaceAll(content, "{{path_to_root}}{{resource ", "{{MARKER_path_to_root_resource ")
+		// Now add path_to_root to all remaining {{ resource calls
+		resourceRegex := regexp.MustCompile(`(\{\{\s*resource\s+)`)
+		content = resourceRegex.ReplaceAllString(content, "{{ path_to_root }}$1")
+		// Restore the marked ones
+		content = strings.ReplaceAll(content, "{{MARKER_path_to_root_resource ", "{{ path_to_root }}{{ resource ")
+
+		indexData = []byte(content)
 	} else {
-		// Fallback to disk
-		tmplDir := filepath.Join("frontend", "templates")
-		if _, err := os.Stat(tmplDir); err != nil {
-			return "", fmt.Errorf("templates directory not found at %s", tmplDir)
+		// Use default template
+		if ctx.AssetsFS != nil {
+			// Use embedded FS
+			tmplFS = ctx.AssetsFS
+			base = "frontend/templates/"
+			indexData, err = fs.ReadFile(ctx.AssetsFS, "frontend/templates/index.hbs")
+		} else {
+			// Fallback to disk
+			tmplDir := filepath.Join("frontend", "templates")
+			if _, err := os.Stat(tmplDir); err != nil {
+				return "", fmt.Errorf("templates directory not found at %s", tmplDir)
+			}
+			tmplFS = os.DirFS(tmplDir)
+			base = ""
+			indexData, err = os.ReadFile(filepath.Join("frontend", "templates", "index.hbs"))
 		}
-		tmplFS = os.DirFS(tmplDir)
-		base = ""
-		indexData, err = os.ReadFile(filepath.Join("frontend", "templates", "index.hbs"))
+
+		if err != nil {
+			return "", fmt.Errorf("failed to read index.hbs: %w", err)
+		}
 	}
 
-	if err != nil {
-		return "", fmt.Errorf("failed to read index.hbs: %w", err)
+	// If default tmplFS not yet set (happens when we didn't use default template), set it now for partials
+	if tmplFS == nil {
+		if ctx.AssetsFS != nil {
+			tmplFS = ctx.AssetsFS
+			base = "frontend/templates/"
+		} else {
+			tmplDir := filepath.Join("frontend", "templates")
+			if _, err := os.Stat(tmplDir); err == nil {
+				tmplFS = os.DirFS(tmplDir)
+				base = ""
+			}
+		}
+	}
+
+	// Helper to read file with theme override support
+	readTemplateFile := func(filename string) ([]byte, error) {
+		// Try theme directory first
+		themePath := filepath.Join("theme", filename)
+		if data, err := os.ReadFile(themePath); err == nil {
+			// Replace mdbook- prefixes with geopub- for compatibility
+			ext := strings.ToLower(filepath.Ext(filename))
+			if ext == ".hbs" || ext == ".html" {
+				content := string(data)
+				content = strings.ReplaceAll(content, "mdbook-", "geopub-")
+				content = strings.ReplaceAll(content, "mdBook", "GeoPub")
+				content = strings.ReplaceAll(content, "<mdbook-", "<geopub-")
+				content = strings.ReplaceAll(content, "</mdbook-", "</geopub-")
+				data = []byte(content)
+			}
+			return data, nil
+		}
+		// Fall back to default templates
+		if tmplFS != nil {
+			return fs.ReadFile(tmplFS, base+filename)
+		}
+		return nil, fmt.Errorf("file not found: %s", filename)
 	}
 
 	// Register partials
@@ -140,17 +207,17 @@ func renderPageWithHbs(ctx *RenderContext, data *pageData) (string, error) {
 	}
 
 	// Register head partial (used for head section)
-	if b, err := fs.ReadFile(tmplFS, base+"head.hbs"); err == nil {
+	if b, err := readTemplateFile("head.hbs"); err == nil {
 		safeRegisterPartial("head", b)
 	}
 
 	// Register header partial (used for page header)
-	if b, err := fs.ReadFile(tmplFS, base+"header.hbs"); err == nil {
+	if b, err := readTemplateFile("header.hbs"); err == nil {
 		safeRegisterPartial("header", b)
 	}
 
 	// Register footer partial
-	if b, err := fs.ReadFile(tmplFS, base+"footer.hbs"); err == nil {
+	if b, err := readTemplateFile("footer.hbs"); err == nil {
 		safeRegisterPartial("footer", b)
 	}
 
@@ -162,29 +229,34 @@ func renderPageWithHbs(ctx *RenderContext, data *pageData) (string, error) {
 
 	// Convert struct to map for proper field name resolution in template
 	dataMap := map[string]interface{}{
-		"language":             data.Language,
-		"default_theme":        data.DefaultTheme,
-		"preferred_dark_theme": data.PreferredDarkTheme,
-		"text_direction":       data.TextDirection,
-		"title":                data.Title,
-		"base_url":             data.BaseUrl,
-		"description":          data.Description,
-		"favicon_svg":          data.FaviconSvg,
-		"favicon_png":          data.FaviconPng,
-		"print_enable":         data.PrintEnable,
-		"additional_css":       data.AdditionalCSS,
-		"additional_js":        data.AdditionalJS,
-		"mathjax_support":      data.MathJaxSupport,
-		"search_js":            data.SearchJS,
-		"search_enabled":       data.SearchEnabled,
-		"path_to_root":         data.PathToRoot,
-		"book_title":           data.BookTitle,
-		"previous":             data.Previous,
-		"next":                 data.Next,
-		"live_reload_endpoint": data.LiveReloadEndpoint,
-		"content":              data.Content,
-		"is_print":             data.IsPrint,
-		"fragment_map":         data.FragmentMap,
+		"language":                  data.Language,
+		"default_theme":             data.DefaultTheme,
+		"preferred_dark_theme":      data.PreferredDarkTheme,
+		"text_direction":            data.TextDirection,
+		"title":                     data.Title,
+		"base_url":                  data.BaseUrl,
+		"description":               data.Description,
+		"favicon_svg":               data.FaviconSvg,
+		"favicon_png":               data.FaviconPng,
+		"copy_fonts":                data.CopyFonts,
+		"print_enable":              data.PrintEnable,
+		"additional_css":            data.AdditionalCSS,
+		"additional_js":             data.AdditionalJS,
+		"mathjax_support":           data.MathJaxSupport,
+		"search_js":                 data.SearchJS,
+		"search_enabled":            data.SearchEnabled,
+		"path_to_root":              data.PathToRoot,
+		"book_title":                data.BookTitle,
+		"previous":                  data.Previous,
+		"next":                      data.Next,
+		"live_reload_endpoint":      data.LiveReloadEndpoint,
+		"content":                   data.Content,
+		"is_print":                  data.IsPrint,
+		"fragment_map":              data.FragmentMap,
+		"git_repository_url":        data.GitRepositoryUrl,
+		"git_repository_edit_url":   data.GitRepositoryEditUrl,
+		"git_repository_icon":       data.GitRepositoryIcon,
+		"git_repository_icon_class": data.GitRepositoryIconClass,
 	}
 
 	result, err := tpl.Exec(dataMap)
