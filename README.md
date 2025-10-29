@@ -4,16 +4,7 @@
   <img src="./geopub.png" alt="geopub logo" width="250" />
 </p>
 
-***geopub*** is a tool for building and publishing documentation websites from Markdown files. It’s inspired by [mdBook](https://github.com/rust-lang/mdBook) but written in Go, with a small JavaScript frontend.
-
-## Disclaimer
-
-This project is for personal use. I created it to customize mdBook and because I mostly work with Go and JavaScript.
-
-It’s not a direct replacement for mdBook. Some Rust-based features aren’t included, and I’ve modified or added features to suit my needs.
-
-**Use at your own risk.** Some behavior may differ from mdBook.
-
+***geopub*** is a utility for building structured documentation sites from Markdown files. It's inspired by [mdBook](https://github.com/rust-lang/mdBook), but is implemented with a Go backend to offer a familiar toolchain for developers who prefer Go for extension and contribution.
 
 ## Quick start
 
@@ -59,7 +50,10 @@ Notes:
 
 ## License
 
-All the code in this repository is released under the ***Mozilla Public License v2.0***, for more information take a look at the [LICENSE] file.
+**geopub** is dual-licensed:
+
+* **Core Go code and original files** are licensed under the **MIT License** (see [LICENSE-MIT]).
+* **Template and static asset files** (copied or derived from the mdBook project) are licensed under the **Mozilla Public License v2.0** (MPL-2.0), as required by the original license (see [LICENSE-MPL-2.0] for details).
 
 [LICENSE]: ./LICENSE
 
