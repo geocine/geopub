@@ -50,11 +50,8 @@ Notes:
 
 ## License
 
-**geopub** is dual-licensed:
-
 * **Core Go code and original files** are licensed under the **MIT License** (see [LICENSE-MIT]).
 * **Template and static asset files** (copied or derived from the mdBook project) are licensed under the **Mozilla Public License v2.0** (MPL-2.0), as required by the original license (see [LICENSE-MPL-2.0] for details).
 
-[LICENSE]: ./LICENSE
-
-
+[LICENSE-MIT]: ./LICENSE-MIT
+[LICENSE-MPL-2.0]: ./LICENSE-MPL-2.0
