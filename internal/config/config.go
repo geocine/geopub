@@ -30,17 +30,19 @@ func DefaultBookConfig() BookConfig {
 
 // BuildConfig contains build settings
 type BuildConfig struct {
-	BuildDir       string   `toml:"build-dir"`
-	CreateMissing  bool     `toml:"create-missing"`
-	ExtraWatchDirs []string `toml:"extra-watch-dirs"`
+	BuildDir                string   `toml:"build-dir"`
+	CreateMissing           bool     `toml:"create-missing"`
+	ExtraWatchDirs          []string `toml:"extra-watch-dirs"`
+	UseDefaultPreprocessors bool     `toml:"use-default-preprocessors"`
 }
 
 // DefaultBuildConfig returns a build config with defaults
 func DefaultBuildConfig() BuildConfig {
 	return BuildConfig{
-		BuildDir:       "book",
-		CreateMissing:  false,
-		ExtraWatchDirs: []string{},
+		BuildDir:                "book",
+		CreateMissing:           false,
+		ExtraWatchDirs:          []string{},
+		UseDefaultPreprocessors: true,
 	}
 }
 
@@ -334,4 +336,107 @@ func (c *Config) GetHtmlConfig() *HtmlConfig {
 		}
 	}
 	return &htmlCfg
+}
+
+// GetPreprocessorConfigs returns all configured preprocessors
+func (c *Config) GetPreprocessorConfigs() map[string]*PreprocessorConfig {
+	result := make(map[string]*PreprocessorConfig)
+
+	// Convert raw preprocessor map to PreprocessorConfig objects
+	for name, cfg := range c.Preprocessor {
+		if m, isMap := cfg.(map[string]interface{}); isMap {
+			pc := &PreprocessorConfig{
+				Renderers: []string{},
+				Before:    []string{},
+				After:     []string{},
+				Extra:     make(map[string]interface{}),
+			}
+
+			// Extract known fields
+			if command, ok := m["command"]; ok {
+				if s, isStr := command.(string); isStr {
+					pc.Command = s
+				}
+			}
+
+			if renderers, ok := m["renderers"]; ok {
+				if arr, isArr := renderers.([]interface{}); isArr {
+					for _, r := range arr {
+						if s, isStr := r.(string); isStr {
+							pc.Renderers = append(pc.Renderers, s)
+						}
+					}
+				}
+			}
+
+			if before, ok := m["before"]; ok {
+				if arr, isArr := before.([]interface{}); isArr {
+					for _, b := range arr {
+						if s, isStr := b.(string); isStr {
+							pc.Before = append(pc.Before, s)
+						}
+					}
+				}
+			}
+
+			if after, ok := m["after"]; ok {
+				if arr, isArr := after.([]interface{}); isArr {
+					for _, a := range arr {
+						if s, isStr := a.(string); isStr {
+							pc.After = append(pc.After, s)
+						}
+					}
+				}
+			}
+
+			// Store extra fields
+			for k, v := range m {
+				if k != "command" && k != "renderers" && k != "before" && k != "after" {
+					pc.Extra[k] = v
+				}
+			}
+
+			result[name] = pc
+		}
+	}
+
+	return result
+}
+
+// GetAdditionalCSS returns the list of additional CSS files to include
+func (c *Config) GetAdditionalCSS() []string {
+	result := []string{}
+	if output, ok := c.Output["html"]; ok {
+		if m, isMap := output.(map[string]interface{}); isMap {
+			if css, ok := m["additional-css"]; ok {
+				if arr, isArr := css.([]interface{}); isArr {
+					for _, c := range arr {
+						if s, isStr := c.(string); isStr {
+							result = append(result, s)
+						}
+					}
+				}
+			}
+		}
+	}
+	return result
+}
+
+// GetAdditionalJS returns the list of additional JavaScript files to include
+func (c *Config) GetAdditionalJS() []string {
+	result := []string{}
+	if output, ok := c.Output["html"]; ok {
+		if m, isMap := output.(map[string]interface{}); isMap {
+			if js, ok := m["additional-js"]; ok {
+				if arr, isArr := js.([]interface{}); isArr {
+					for _, j := range arr {
+						if s, isStr := j.(string); isStr {
+							result = append(result, s)
+						}
+					}
+				}
+			}
+		}
+	}
+	return result
 }

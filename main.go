@@ -17,8 +17,7 @@ import (
 	"github.com/geocine/geopub/internal/config"
 	"github.com/geocine/geopub/internal/loader"
 	"github.com/geocine/geopub/internal/models"
-	"github.com/geocine/geopub/internal/preprocessor"
-    "github.com/geocine/geopub/internal/preprocessor/index"
+	"github.com/geocine/geopub/internal/preprocessor/runner"
 	"github.com/geocine/geopub/internal/renderer"
 )
 
@@ -26,6 +25,8 @@ func main() {
 	// Define subcommands
 	buildCmd := flag.NewFlagSet("build", flag.ExitOnError)
 	buildDir := buildCmd.String("dest-dir", "", "Destination directory for build")
+	buildNoExternals := buildCmd.Bool("no-externals", false, "Disable external preprocessors")
+	buildVerbose := buildCmd.Bool("verbose", false, "Enable verbose output")
 
 	initCmd := flag.NewFlagSet("init", flag.ExitOnError)
 	initName := initCmd.String("name", "", "Book directory name (or pass as positional)")
@@ -40,6 +41,8 @@ func main() {
 	serveHost := serveCmd.String("hostname", "127.0.0.1", "Hostname to bind to")
 	serveOpen := serveCmd.Bool("open", false, "Open in browser")
 	serveDest := serveCmd.String("dest-dir", "", "Destination directory for build")
+	serveNoExternals := serveCmd.Bool("no-externals", false, "Disable external preprocessors")
+	serveVerbose := serveCmd.Bool("verbose", false, "Enable verbose output")
 
 	cleanCmd := flag.NewFlagSet("clean", flag.ExitOnError)
 	cleanDest := cleanCmd.String("dest-dir", "", "Destination directory to clean")
@@ -57,7 +60,7 @@ func main() {
 	switch os.Args[1] {
 	case "build":
 		buildCmd.Parse(os.Args[2:])
-		handleBuild(*buildDir)
+		handleBuild(*buildDir, *buildNoExternals, *buildVerbose)
 
 	case "init":
 		initCmd.Parse(os.Args[2:])
@@ -65,7 +68,7 @@ func main() {
 
 	case "serve":
 		serveCmd.Parse(os.Args[2:])
-		handleServe(*serveHost, *servePort, *serveOpen, *serveDest)
+		handleServe(*serveHost, *servePort, *serveOpen, *serveDest, *serveNoExternals, *serveVerbose)
 
 	case "clean":
 		cleanCmd.Parse(os.Args[2:])
@@ -77,7 +80,7 @@ func main() {
 	}
 }
 
-func handleBuild(destDir string) {
+func handleBuild(destDir string, noExternals, verbose bool) {
 	// Load config
 	cfg, err := config.LoadFromFile("book.toml")
 	if err != nil {
@@ -120,10 +123,11 @@ func handleBuild(destDir string) {
 
 	// Run preprocessors
 	fmt.Println("Running preprocessors...")
-    pipeline := preprocessor.NewPipeline()
-    pipeline.Add(index.NewIndexPreprocessor())
+	pipelineRunner := runner.NewRunner(cfg, "html")
+	pipelineRunner.SetVerbose(verbose)
+	pipelineRunner.SetDisableExternals(noExternals)
 
-	if err := pipeline.Process(book); err != nil {
+	if err := pipelineRunner.Run(book); err != nil {
 		log.Fatalf("Failed to run preprocessors: %v", err)
 	}
 
@@ -184,7 +188,7 @@ func handleInit(initCmd *flag.FlagSet, name, title, src, buildDir string, create
 }
 
 // handleServe builds the book, serves it with live reload, and rebuilds on changes.
-func handleServe(host string, port int, open bool, destOverride string) {
+func handleServe(host string, port int, open bool, destOverride string, noExternals, verbose bool) {
 	addr := fmt.Sprintf("%s:%d", host, port)
 
 	// Load config
@@ -201,7 +205,7 @@ func handleServe(host string, port int, open bool, destOverride string) {
 	}
 
 	// Initial build
-	if err := buildWithOptions(outDir, true, "/__livereload"); err != nil {
+	if err := buildWithOptions(outDir, true, "/__livereload", noExternals, verbose); err != nil {
 		log.Fatalf("Initial build failed: %v", err)
 	}
 
@@ -292,7 +296,7 @@ func handleServe(host string, port int, open bool, destOverride string) {
 				continue
 			}
 			log.Println("Change detected, rebuilding...")
-			if err := buildWithOptions(outDir, true, "/__livereload"); err != nil {
+			if err := buildWithOptions(outDir, true, "/__livereload", noExternals, verbose); err != nil {
 				log.Printf("Build failed: %v", err)
 			} else {
 				lastHash = hash2
@@ -306,7 +310,7 @@ func handleServe(host string, port int, open bool, destOverride string) {
 }
 
 // buildWithOptions loads the book and renders with optional live reload endpoint.
-func buildWithOptions(outDir string, serve bool, liveReloadPath string) error {
+func buildWithOptions(outDir string, serve bool, liveReloadPath string, noExternals, verbose bool) error {
 	cfg, err := config.LoadFromFile("book.toml")
 	if err != nil {
 		cfg = config.NewDefaultConfig()
@@ -316,6 +320,15 @@ func buildWithOptions(outDir string, serve bool, liveReloadPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to load book: %w", err)
 	}
+
+	// Run preprocessors
+	pipelineRunner := runner.NewRunner(cfg, "html")
+	pipelineRunner.SetVerbose(verbose)
+	pipelineRunner.SetDisableExternals(noExternals)
+	if err := pipelineRunner.Run(book); err != nil {
+		return fmt.Errorf("failed to run preprocessors: %w", err)
+	}
+
 	htmlRenderer := renderer.NewHtmlRenderer()
 	ctx := &renderer.RenderContext{
 		Root:                   ".",

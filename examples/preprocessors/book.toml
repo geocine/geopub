@@ -1,0 +1,16 @@
+[book]
+title = "test-book"
+src = "src"
+
+[build]
+build-dir = "book"
+create-missing = true
+
+[preprocessor.my-test]
+command = "node ../geopub/examples/preprocessor-token-replace/preprocessor.js"
+renderers = ["html"]
+TEST_VAR = "Hello from preprocessor"
+
+[preprocessor.go-example]
+command = "../geopub/examples/preprocessor-go/geopub-go-example.exe"
+renderers = ["html"]

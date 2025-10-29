@@ -1,0 +1,18 @@
+{
+  "name": "geopub-preprocessor-token-replace",
+  "version": "1.0.0",
+  "description": "GeoPub token replacement preprocessor example",
+  "main": "preprocessor.js",
+  "bin": {
+    "geopub-token-replace": "preprocessor.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["geopub", "preprocessor", "mdbook"],
+  "author": "GeoPub",
+  "license": "MIT",
+  "engines": {
+    "node": ">=12.0.0"
+  }
+}
