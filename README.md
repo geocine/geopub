@@ -59,6 +59,8 @@ GeoPub supports mdBook-compatible external preprocessors for content transformat
 - Protocol specification
 - Debugging and troubleshooting
 
+**Note**: GeoPub does NOT support the mdBook "links" preprocessor (e.g., `{{#include}}`, `{{#rustdoc_include}}`, `{{#playground}}`). These features are explicitly out of scope.
+
 ## License
 
 * **Core Go code and original files** are licensed under the **MIT License** (see [LICENSE-MIT]).
