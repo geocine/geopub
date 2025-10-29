@@ -6,6 +6,7 @@ import (
 
 	"github.com/geocine/geopub/internal/config"
 	"github.com/geocine/geopub/internal/models"
+	"github.com/geocine/geopub/internal/preprocessor/frontmatter"
 	"github.com/geocine/geopub/internal/preprocessor/index"
 )
 
@@ -31,6 +32,10 @@ func NewRunner(cfg *config.Config, renderer string) *Runner {
 			"index": func(book *models.Book) error {
 				idx := index.NewIndexPreprocessor()
 				return idx.Process(book)
+			},
+			"frontmatter": func(book *models.Book) error {
+				fm := frontmatter.NewFrontmatterPreprocessor()
+				return fm.Process(book)
 			},
 		},
 	}

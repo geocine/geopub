@@ -48,6 +48,17 @@ Notes:
 - `--create-missing` auto-creates referenced chapters on build.
 - `serve` is supported (host/port flags available); `--open` will launch your browser.
 
+## Preprocessors
+
+GeoPub supports mdBook-compatible external preprocessors for content transformation.
+
+**See**: [examples/preprocessors/README.md](./examples/preprocessors/README.md) for complete documentation on:
+- Available example preprocessors
+- How to use preprocessors
+- Creating your own preprocessor
+- Protocol specification
+- Debugging and troubleshooting
+
 ## License
 
 * **Core Go code and original files** are licensed under the **MIT License** (see [LICENSE-MIT]).

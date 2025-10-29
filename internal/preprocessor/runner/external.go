@@ -168,11 +168,16 @@ func ExecutePreprocessor(name string, ppCfg *config.PreprocessorConfig, book *mo
 
 // isBuiltinPreprocessor checks if a preprocessor is built-in (runs in-process)
 func isBuiltinPreprocessor(name string) bool {
-	// For now, only "index" is built-in
-	return name == "index"
+	// Built-in preprocessors: index and frontmatter
+	builtins := map[string]bool{
+		"index":       true,
+		"frontmatter": true,
+	}
+	return builtins[name]
 }
 
 // GetBuiltinPreprocessors returns the list of built-in preprocessor names
+// Only "index" is in the default list; frontmatter must be explicitly enabled
 func GetBuiltinPreprocessors() []string {
 	return []string{"index"}
 }
